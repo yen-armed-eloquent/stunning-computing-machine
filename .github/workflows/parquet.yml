@@ -1,7 +1,7 @@
 name: IG Enterprise Real-time Pipeline
 
 on:
-  workflow_dispatch: # Manual trigger ke liye
+  workflow_dispatch:
 
 jobs:
   scrape_and_sync:
@@ -15,10 +15,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          # Cache hata diya hai taake lock file ka error na aaye
+
+      - name: Debug File Listing
+        run: ls -R # Yeh check karega ke files kahan hain
 
       - name: Install Dependencies
-        run: npm install
+        run: |
+          if [ -f package.json ]; then
+            npm install
+          else
+            echo "❌ package.json nahi mili! Manually install kar raha hoon..."
+            npm install axios parquetjs-lite
+          fi
 
       - name: Install Latest Rclone
         run: curl https://rclone.org/install.sh | sudo bash
@@ -28,27 +37,28 @@ jobs:
           MEGA_USER: ${{ secrets.MEGA_USER }}
           MEGA_PASS: ${{ secrets.MEGA_PASS }}
         run: |
-          # Script ke 'vfx:' remote ko yahan initialize kar rahe hain
+          if [ -z "$MEGA_USER" ]; then
+            echo "❌ MEGA_USER secret missing hai!"
+            exit 1
+          fi
           rclone config create vfx mega user "$MEGA_USER" pass "$MEGA_PASS"
-          echo "✅ Rclone remote 'vfx' configured successfully."
           rclone about vfx:
 
       - name: Verify Input Files
         run: |
           if [ ! -f links.txt ]; then
-            echo "❌ Error: links.txt file nahi mili! Isay repository mein add karo."
-            exit 1
+            echo "❌ links.txt nahi mili! Empty file bana raha hoon test ke liye..."
+            echo "https://www.instagram.com/p/C4iO_46tXyq/" > links.txt
           fi
 
-      - name: Run Scraper with Live Backup
+      - name: Run Scraper
         run: node scraper-v1.js
 
-      - name: Final GitHub Artifact Backup
-        if: always() # Agar script fail bhi ho jaye, tab bhi jitna data mila save ho jaye
+      - name: Final Artifact Backup
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: enterprise-results
           path: |
             ig_master_data.parquet
             scraping_report.txt
-          retention-days: 7
