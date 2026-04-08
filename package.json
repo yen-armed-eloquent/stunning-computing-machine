@@ -1,11 +1,10 @@
 {
-  "name": "ig-scraper-v1",
-  "version": "1.0.0",
+  "name": "ig-enterprise-scraper",
+  "version": "2.0.0",
+  "description": "Instagram Full Rich Dump Scraper with Parquet and Real-time MEGA Sync",
   "main": "scraper-v1.js",
-  "scripts": {
-    "start": "node scraper-v1.js"
-  },
   "dependencies": {
-    "axios": "^1.6.7"
+    "axios": "^1.6.7",
+    "parquetjs-lite": "^0.8.7"
   }
 }
