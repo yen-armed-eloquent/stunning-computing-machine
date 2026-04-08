@@ -1,31 +1,33 @@
-name: IG Scraper Runner
+name: IG Scraper V1 Runner
 
 on:
-  workflow_dispatch: # Isse aap manually button daba kar script chala saken ge
+  workflow_dispatch: 
 
 jobs:
-  scrape:
+  scrape_job:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Latest stable version
+          node-version: '20'
 
       - name: Install Dependencies
-        run: npm install axios https-proxy-agent
+        run: npm install axios
 
-      - name: Run Scraper
-        run: node scraper.js
+      - name: Run Scraper V1
+        # Ensure karein ke file ka naam GitHub par 'scraper-v1.js' hi hai
+        run: node scraper-v1.js
 
-      - name: Upload Scraped Data
+      - name: Upload Scraped JSON
         uses: actions/upload-artifact@v4
-        if: always() # Agar script fail bhi ho jaye tab bhi jitna data mila wo upload ho jaye
+        if: always() 
         with:
-          name: scraped-results
-          path: scraped_data/ # Ye aapke folder ka naam hai jo script banata hai
-          retention-days: 5 # Data 5 din tak GitHub par rahega
+          name: instagram-raw-data
+          # scraper-v1.js ye wala file pattern banata hai:
+          path: IG_RawData_Full_NodeJS_*.json
+          retention-days: 5
