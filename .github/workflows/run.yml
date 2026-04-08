@@ -1,0 +1,63 @@
+name: IG Scraper with MEGA Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  mega_pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Rclone
+        run: sudo apt-get update && sudo apt-get install -y rclone
+
+      # --- STEP 1: MEGA CONNECTION TEST ---
+      - name: Test Rclone MEGA Connection
+        env:
+          MEGA_USER: ${{ secrets.MEGA_USER }}
+          MEGA_PASS: ${{ secrets.MEGA_PASS }}
+        run: |
+          echo "🔍 MEGA Connection test kar raha hoon..."
+          # 'rclone about' check karta hai ke login sahi hai aur space kitni hai
+          rclone about :mega: --mega-user "$MEGA_USER" --mega-pass "$MEGA_PASS"
+          echo "✅ Connection Successful! Login sahi hai."
+
+      # --- STEP 2: RUN SCRAPER (Sirf agar test pass ho) ---
+      - name: Install Dependencies
+        run: npm install axios
+
+      - name: Run Scraper V1
+        run: node scraper-v1.js
+
+      # --- STEP 3: UPLOAD TO MEGA ---
+      - name: Upload to MEGA
+        if: success() # Sirf tab chalega agar scraper sahi se khatam ho
+        env:
+          MEGA_USER: ${{ secrets.MEGA_USER }}
+          MEGA_PASS: ${{ secrets.MEGA_PASS }}
+        run: |
+          BATCH_NAME="IG_Scrape_$(date +'%Y-%m-%d_%H-%M')"
+          echo "🚀 MEGA par folder ban raha hai: $BATCH_NAME"
+          
+          rclone copy . :mega:/$BATCH_NAME \
+            --mega-user "$MEGA_USER" \
+            --mega-pass "$MEGA_PASS" \
+            --include "IG_RawData_Full_NodeJS_*.json" \
+            -v
+
+      # --- BACKUP STEP: Agar MEGA fail ho jaye toh data zaya na ho ---
+      - name: Backup to GitHub Artifacts (Optional)
+        if: failure() || always() # Agar MEGA upload fail bhi ho, toh yahan data mil jayega
+        uses: actions/upload-artifact@v4
+        with:
+          name: emergency-backup-data
+          path: IG_RawData_Full_NodeJS_*.json
+          retention-days: 1
