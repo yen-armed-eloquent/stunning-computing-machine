@@ -1,0 +1,45 @@
+name: IG Enterprise Real-time Pipeline
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scrape_and_sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm install axios parquetjs-lite
+
+      - name: Install Latest Rclone
+        run: curl https://rclone.org/install.sh | sudo bash
+
+      - name: Configure MEGA (VFX Remote)
+        env:
+          MEGA_USER: ${{ secrets.MEGA_USER }}
+          MEGA_PASS: ${{ secrets.MEGA_PASS }}
+        run: |
+          rclone config create vfx mega user "$MEGA_USER" pass "$MEGA_PASS"
+          # Connection Test
+          rclone about vfx:
+
+      - name: Run Scraper with Live Backup
+        run: node scraper-v1.js
+
+      - name: Final GitHub Artifact Backup
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: enterprise-results
+          path: |
+            ig_master_data.parquet
+            scraping_report.txt
+          retention-days: 7
