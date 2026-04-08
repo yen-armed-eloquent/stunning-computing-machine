@@ -1,14 +1,13 @@
-name: IG Scraper V1 Runner
+name: IG Scraper Runner
 
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
 
 jobs:
-  scrape_job:
+  scrape:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -19,15 +18,13 @@ jobs:
       - name: Install Dependencies
         run: npm install axios
 
-      - name: Run Scraper V1
-        # Ensure karein ke file ka naam GitHub par 'scraper-v1.js' hi hai
-        run: node scraper-v1.js
+      - name: Run Scraper
+        run: node scraper-v1.js  # <--- Ye sahi naam hona chahiye
 
-      - name: Upload Scraped JSON
+      - name: Upload Scraped Data
         uses: actions/upload-artifact@v4
-        if: always() 
+        if: always()
         with:
-          name: instagram-raw-data
-          # scraper-v1.js ye wala file pattern banata hai:
-          path: IG_RawData_Full_NodeJS_*.json
+          name: scraped-results
+          path: IG_RawData_Full_NodeJS_*.json # <--- Nayi file ka pattern
           retention-days: 5
