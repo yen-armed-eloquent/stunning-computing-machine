@@ -1,7 +1,7 @@
 name: IG Enterprise Real-time Pipeline
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Manual trigger ke liye
 
 jobs:
   scrape_and_sync:
@@ -15,9 +15,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install axios parquetjs-lite
+        run: npm install
 
       - name: Install Latest Rclone
         run: curl https://rclone.org/install.sh | sudo bash
@@ -27,15 +28,23 @@ jobs:
           MEGA_USER: ${{ secrets.MEGA_USER }}
           MEGA_PASS: ${{ secrets.MEGA_PASS }}
         run: |
+          # Script ke 'vfx:' remote ko yahan initialize kar rahe hain
           rclone config create vfx mega user "$MEGA_USER" pass "$MEGA_PASS"
-          # Connection Test
+          echo "✅ Rclone remote 'vfx' configured successfully."
           rclone about vfx:
+
+      - name: Verify Input Files
+        run: |
+          if [ ! -f links.txt ]; then
+            echo "❌ Error: links.txt file nahi mili! Isay repository mein add karo."
+            exit 1
+          fi
 
       - name: Run Scraper with Live Backup
         run: node scraper-v1.js
 
       - name: Final GitHub Artifact Backup
-        if: always()
+        if: always() # Agar script fail bhi ho jaye, tab bhi jitna data mila save ho jaye
         uses: actions/upload-artifact@v4
         with:
           name: enterprise-results
