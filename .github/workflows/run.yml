@@ -1,4 +1,4 @@
-name: IG Scraper with MEGA Test
+name: IG Scraper MEGA VFX Setup
 
 on:
   workflow_dispatch:
@@ -16,48 +16,50 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Rclone
-        run: sudo apt-get update && sudo apt-get install -y rclone
+      # --- STEP 1: LATEST RCLONE INSTALLATION ---
+      - name: Install Latest Rclone
+        run: curl https://rclone.org/install.sh | sudo bash
 
-      # --- STEP 1: MEGA CONNECTION TEST ---
-      - name: Test Rclone MEGA Connection
+      # --- STEP 2: CREATE REMOTE & TEST CONNECTION ---
+      - name: Rclone MEGA Setup & Test
         env:
           MEGA_USER: ${{ secrets.MEGA_USER }}
           MEGA_PASS: ${{ secrets.MEGA_PASS }}
         run: |
-          echo "🔍 MEGA Connection test kar raha hoon..."
-          # 'rclone about' check karta hai ke login sahi hai aur space kitni hai
-          rclone about :mega: --mega-user "$MEGA_USER" --mega-pass "$MEGA_PASS"
-          echo "✅ Connection Successful! Login sahi hai."
+          echo "🛠️ Creating Rclone remote 'vfx'..."
+          # VFX naam ka remote banaya ja raha hai
+          rclone config create vfx mega user "$MEGA_USER" pass "$MEGA_PASS"
+          
+          echo "🔍 Connection test kar raha hoon..."
+          rclone about vfx:
+          echo "✅ MEGA Connection Successful!"
 
-      # --- STEP 2: RUN SCRAPER (Sirf agar test pass ho) ---
-      - name: Install Dependencies
+      # --- STEP 3: RUN SCRAPER ---
+      - name: Install Scraper Dependencies
         run: npm install axios
 
       - name: Run Scraper V1
         run: node scraper-v1.js
 
-      # --- STEP 3: UPLOAD TO MEGA ---
+      # --- STEP 4: UPLOAD DATA TO MEGA ---
       - name: Upload to MEGA
-        if: success() # Sirf tab chalega agar scraper sahi se khatam ho
-        env:
-          MEGA_USER: ${{ secrets.MEGA_USER }}
-          MEGA_PASS: ${{ secrets.MEGA_PASS }}
+        if: success()
         run: |
+          # Naya folder name date aur time ke sath
           BATCH_NAME="IG_Scrape_$(date +'%Y-%m-%d_%H-%M')"
-          echo "🚀 MEGA par folder ban raha hai: $BATCH_NAME"
           
-          rclone copy . :mega:/$BATCH_NAME \
-            --mega-user "$MEGA_USER" \
-            --mega-pass "$MEGA_PASS" \
+          echo "🚀 Uploading data to MEGA in folder: $BATCH_NAME"
+          
+          # Root directory se sirf JSON files utha kar vfx remote par upload karna
+          rclone copy . vfx:/$BATCH_NAME \
             --include "IG_RawData_Full_NodeJS_*.json" \
-            -v
+            -P --transfers 32 --checkers 64
 
-      # --- BACKUP STEP: Agar MEGA fail ho jaye toh data zaya na ho ---
-      - name: Backup to GitHub Artifacts (Optional)
-        if: failure() || always() # Agar MEGA upload fail bhi ho, toh yahan data mil jayega
+      # --- STEP 5: EMERGENCY BACKUP (GitHub Artifacts) ---
+      - name: Backup if MEGA Fails
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: emergency-backup-data
+          name: scraper-output-backup
           path: IG_RawData_Full_NodeJS_*.json
           retention-days: 1
